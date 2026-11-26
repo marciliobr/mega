@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mega-Sena — Simulador de Sorteios</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+
+  <main class="page">
+    <header class="hero">
+      <p class="hero-kicker">Simulador estatístico</p>
+      <h1 class="brand">Mega-Sena</h1>
+      <p class="hero-lead">
+        Escolha quantos sorteios deseja simular. A aplicação gera 6 dezenas de 1 a 60 e mostra as estatísticas.
+      </p>
+
+      <form class="controls" id="sim-form" autocomplete="off">
+        <label class="field" for="draw-count">
+          <span class="field-label">Quantidade de sorteios</span>
+          <input
+            id="draw-count"
+            name="drawCount"
+            type="number"
+            min="1"
+            max="100000"
+            step="1"
+            value="1000"
+            required
+          />
+        </label>
+        <button type="submit" class="btn-primary" id="sim-btn">Simular</button>
+      </form>
+
+      <div class="progress" id="progress" hidden>
+        <div class="progress-track">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <p class="progress-text" id="progress-text">Preparando…</p>
+      </div>
+    </header>
+
+    <section class="results" id="results" hidden>
+      <section class="section" id="summary-section">
+        <h2>Resumo da simulação</h2>
+        <p class="section-lead" id="summary-lead"></p>
+        <div class="summary-grid" id="summary-grid"></div>
+      </section>
+
+      <section class="section" id="heat-section">
+        <h2>Mapa de frequência</h2>
+        <p class="section-lead">Intensidade das bolas proporcional a quantas vezes cada número saiu.</p>
+        <div class="ball-grid" id="ball-grid"></div>
+      </section>
+
+      <section class="section" id="hotcold-section">
+        <h2>Quentes e frios</h2>
+        <p class="section-lead">Os 6 mais sorteados e os 6 menos sorteados nesta simulação.</p>
+        <div class="hotcold" id="hotcold"></div>
+      </section>
+
+      <section class="section" id="table-section">
+        <h2>Estatísticas por número</h2>
+        <p class="section-lead">Ordenado por frequência, do mais ao menos sorteado.</p>
+        <div class="table-wrap">
+          <table class="stats-table" id="stats-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Número</th>
+                <th>Vezes</th>
+                <th>%</th>
+                <th>Desvio</th>
+                <th>Seq. seguida</th>
+                <th>Maior seca</th>
+                <th>Seca atual</th>
+              </tr>
+            </thead>
+            <tbody id="stats-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="never-section" hidden>
+        <h2>Nunca saíram</h2>
+        <p class="section-lead">Números que não apareceram em nenhum sorteio desta simulação.</p>
+        <div class="never-list" id="never-list"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
