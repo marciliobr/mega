@@ -4,8 +4,9 @@
   const MAX_DRAWS = 100_000;
   const POOL_SIZE = 60;
   const PICK = 6;
-  const EXPECTED_RATE = PICK / POOL_SIZE; // 0.1
-  const THEORETICAL_MEAN_SUM = (PICK * (POOL_SIZE + 1)) / 2; // 183
+  const EXPECTED_RATE = PICK / POOL_SIZE;
+  const THEORETICAL_MEAN_SUM = (PICK * (POOL_SIZE + 1)) / 2;
+  const DRAWS_PER_PAGE = 25;
 
   const form = document.getElementById("sim-form");
   const drawCountInput = document.getElementById("draw-count");
@@ -17,12 +18,22 @@
   const summaryLead = document.getElementById("summary-lead");
   const summaryGrid = document.getElementById("summary-grid");
   const ballGrid = document.getElementById("ball-grid");
+  const barChart = document.getElementById("bar-chart");
   const hotcold = document.getElementById("hotcold");
   const statsBody = document.getElementById("stats-body");
   const neverSection = document.getElementById("never-section");
   const neverList = document.getElementById("never-list");
+  const drawsList = document.getElementById("draws-list");
+  const drawsPager = document.getElementById("draws-pager");
+  const drawJump = document.getElementById("draw-jump");
 
   let running = false;
+  let lastDraws = [];
+  let drawsPage = 0;
+
+  function pad2(n) {
+    return String(n).padStart(2, "0");
+  }
 
   function drawOnce() {
     const pool = Array.from({ length: POOL_SIZE }, (_, i) => i + 1);
@@ -43,6 +54,7 @@
       maxDrought: new Array(POOL_SIZE + 1).fill(0),
       currentDrought: new Array(POOL_SIZE + 1).fill(0),
       lastSeenAt: new Array(POOL_SIZE + 1).fill(-1),
+      draws: [],
       evenTotal: 0,
       oddTotal: 0,
       lowTotal: 0,
@@ -58,6 +70,8 @@
     let odd = 0;
     let low = 0;
     let high = 0;
+
+    tracker.draws.push(draw);
 
     for (const n of draw) {
       present[n] = 1;
@@ -93,6 +107,22 @@
     }
   }
 
+  function findLeaders(rows, key) {
+    const best = Math.max(...rows.map((r) => r[key]));
+    const numbers = rows
+      .filter((r) => r[key] === best)
+      .map((r) => r.number)
+      .sort((a, b) => a - b);
+    return { value: best, numbers };
+  }
+
+  function formatNumberList(numbers) {
+    if (numbers.length <= 3) {
+      return numbers.map(pad2).join(", ");
+    }
+    return `${numbers.slice(0, 3).map(pad2).join(", ")}…`;
+  }
+
   function buildStats(tracker, totalDraws) {
     const expected = totalDraws * EXPECTED_RATE;
     const rows = [];
@@ -119,28 +149,25 @@
 
     const neverDrawn = rows.filter((r) => r.frequency === 0).map((r) => r.number);
     const hot = rows.slice(0, 6);
-    const cold = [...rows].sort(
-      (a, b) => a.frequency - b.frequency || a.number - b.number
-    ).slice(0, 6);
-
-    const avgEven = tracker.evenTotal / totalDraws;
-    const avgOdd = tracker.oddTotal / totalDraws;
-    const avgLow = tracker.lowTotal / totalDraws;
-    const avgHigh = tracker.highTotal / totalDraws;
-    const avgSum = tracker.sumTotal / totalDraws;
+    const cold = [...rows]
+      .sort((a, b) => a.frequency - b.frequency || a.number - b.number)
+      .slice(0, 6);
 
     return {
       rows,
       neverDrawn,
       hot,
       cold,
-      avgEven,
-      avgOdd,
-      avgLow,
-      avgHigh,
-      avgSum,
+      avgEven: tracker.evenTotal / totalDraws,
+      avgOdd: tracker.oddTotal / totalDraws,
+      avgLow: tracker.lowTotal / totalDraws,
+      avgHigh: tracker.highTotal / totalDraws,
+      avgSum: tracker.sumTotal / totalDraws,
       expected,
       totalDraws,
+      draws: tracker.draws,
+      bestStreak: findLeaders(rows, "maxStreak"),
+      bestDrought: findLeaders(rows, "maxDrought"),
     };
   }
 
@@ -196,6 +223,9 @@
   function renderSummary(stats) {
     summaryLead.textContent = `${formatInt(stats.totalDraws)} sorteios · expectativa por número: ${formatNum(stats.expected, 1)} aparições`;
 
+    const streakNums = formatNumberList(stats.bestStreak.numbers);
+    const droughtNums = formatNumberList(stats.bestDrought.numbers);
+
     const tiles = [
       {
         label: "Soma média",
@@ -214,23 +244,27 @@
       },
       {
         label: "Mais quente",
-        value: String(stats.hot[0].number).padStart(2, "0"),
+        value: pad2(stats.hot[0].number),
         hint: `${formatInt(stats.hot[0].frequency)} vezes`,
       },
       {
         label: "Mais frio",
-        value: String(stats.cold[0].number).padStart(2, "0"),
+        value: pad2(stats.cold[0].number),
         hint: `${formatInt(stats.cold[0].frequency)} vezes`,
       },
       {
         label: "Maior sequência",
-        value: formatInt(Math.max(...stats.rows.map((r) => r.maxStreak))),
-        hint: "sorteios seguidos com o mesmo nº",
+        value: pad2(stats.bestStreak.numbers[0]),
+        hint: `${formatInt(stats.bestStreak.value)} seguidos${
+          stats.bestStreak.numbers.length > 1 ? ` · também ${streakNums}` : ""
+        }`,
       },
       {
         label: "Maior seca",
-        value: formatInt(Math.max(...stats.rows.map((r) => r.maxDrought))),
-        hint: "sorteios seguidos sem o nº",
+        value: pad2(stats.bestDrought.numbers[0]),
+        hint: `${formatInt(stats.bestDrought.value)} sem sair${
+          stats.bestDrought.numbers.length > 1 ? ` · também ${droughtNums}` : ""
+        }`,
       },
       {
         label: "Nunca saíram",
@@ -256,7 +290,6 @@
       return { bg: "#2ecc71", text: "#042014" };
     }
     const t = (freq - min) / (max - min);
-    // cold dark green → hot bright mint
     const r = Math.round(26 + t * (125 - 26));
     const g = Math.round(77 + t * (255 - 77));
     const b = Math.round(51 + t * (176 - 51));
@@ -277,11 +310,29 @@
       const delay = ((n - 1) % 10) * 18 + Math.floor((n - 1) / 10) * 12;
       html.push(`
         <div class="ball" style="background:${bg};color:${text};animation-delay:${delay}ms" title="Número ${n}: ${row.frequency} vezes">
-          ${String(n).padStart(2, "0")}
+          ${pad2(n)}
           <span class="ball-count">${formatInt(row.frequency)}</span>
         </div>`);
     }
     ballGrid.innerHTML = html.join("");
+  }
+
+  function renderBarChart(stats) {
+    const byNumber = new Map(stats.rows.map((r) => [r.number, r]));
+    const max = Math.max(...stats.rows.map((r) => r.frequency), 1);
+
+    const html = [];
+    for (let n = 1; n <= POOL_SIZE; n++) {
+      const row = byNumber.get(n);
+      const height = Math.max(2, (row.frequency / max) * 100);
+      html.push(`
+        <div class="bar-col" title="Número ${pad2(n)}: ${formatInt(row.frequency)} vezes">
+          <span class="bar-value">${formatInt(row.frequency)}</span>
+          <div class="bar" style="height:${height}%"></div>
+          <span class="bar-label">${pad2(n)}</span>
+        </div>`);
+    }
+    barChart.innerHTML = html.join("");
   }
 
   function renderHotCold(stats) {
@@ -292,15 +343,14 @@
           .map(
             (r) => `
           <div class="hotcold-row">
-            <span class="mini-ball">${String(r.number).padStart(2, "0")}</span>
+            <span class="mini-ball">${pad2(r.number)}</span>
             <div class="meta">${formatInt(r.frequency)} vezes<br /><span>${formatNum(r.percent, 2)}% dos sorteios</span></div>
           </div>`
           )
           .join("")}
       </div>`;
 
-    hotcold.innerHTML =
-      col("Quentes", stats.hot) + col("Frios", stats.cold);
+    hotcold.innerHTML = col("Quentes", stats.hot) + col("Frios", stats.cold);
   }
 
   function renderTable(stats) {
@@ -311,7 +361,7 @@
         return `
         <tr style="animation-delay:${Math.min(i, 20) * 20}ms">
           <td class="pos">${i + 1}</td>
-          <td class="num-cell">${String(r.number).padStart(2, "0")}</td>
+          <td class="num-cell">${pad2(r.number)}</td>
           <td>${formatInt(r.frequency)}</td>
           <td>${formatNum(r.percent, 2)}%</td>
           <td class="${deltaClass}">${formatDelta(r.delta)}</td>
@@ -331,19 +381,98 @@
     }
     neverSection.hidden = false;
     neverList.innerHTML = stats.neverDrawn
-      .map((n) => `<span class="mini-ball">${String(n).padStart(2, "0")}</span>`)
+      .map((n) => `<span class="mini-ball">${pad2(n)}</span>`)
       .join("");
   }
 
+  function totalPages() {
+    return Math.max(1, Math.ceil(lastDraws.length / DRAWS_PER_PAGE));
+  }
+
+  function renderDrawsPage() {
+    if (!lastDraws.length) {
+      drawsList.innerHTML = "";
+      drawsPager.innerHTML = "";
+      return;
+    }
+
+    const pages = totalPages();
+    drawsPage = Math.max(0, Math.min(drawsPage, pages - 1));
+    const start = drawsPage * DRAWS_PER_PAGE;
+    const end = Math.min(start + DRAWS_PER_PAGE, lastDraws.length);
+    const slice = lastDraws.slice(start, end);
+
+    drawsList.innerHTML = slice
+      .map((draw, i) => {
+        const index = start + i + 1;
+        return `
+        <article class="draw-row" style="animation-delay:${i * 18}ms">
+          <div class="draw-index">Sorteio ${formatInt(index)}</div>
+          <div class="draw-balls">
+            ${draw.map((n) => `<span class="mini-ball">${pad2(n)}</span>`).join("")}
+          </div>
+        </article>`;
+      })
+      .join("");
+
+    drawsPager.innerHTML = `
+      <button type="button" class="btn-ghost" id="draws-prev" ${drawsPage === 0 ? "disabled" : ""}>Anterior</button>
+      <span>${formatInt(start + 1)}–${formatInt(end)} de ${formatInt(lastDraws.length)}</span>
+      <button type="button" class="btn-ghost" id="draws-next" ${drawsPage >= pages - 1 ? "disabled" : ""}>Próxima</button>
+    `;
+
+    document.getElementById("draws-prev").addEventListener("click", () => {
+      drawsPage -= 1;
+      renderDrawsPage();
+    });
+    document.getElementById("draws-next").addEventListener("click", () => {
+      drawsPage += 1;
+      renderDrawsPage();
+    });
+
+    drawJump.max = String(lastDraws.length);
+    if (!drawJump.value) drawJump.value = "1";
+  }
+
+  function jumpToDraw(n) {
+    if (!lastDraws.length) return;
+    const index = Math.max(1, Math.min(lastDraws.length, Math.floor(n)));
+    drawsPage = Math.floor((index - 1) / DRAWS_PER_PAGE);
+    drawJump.value = String(index);
+    renderDrawsPage();
+    const rows = drawsList.querySelectorAll(".draw-row");
+    const offset = (index - 1) % DRAWS_PER_PAGE;
+    if (rows[offset]) {
+      rows[offset].scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
   function renderAll(stats) {
+    lastDraws = stats.draws;
+    drawsPage = 0;
+    drawJump.value = "1";
+    drawJump.max = String(Math.max(1, lastDraws.length));
+
     renderSummary(stats);
     renderBallGrid(stats);
+    renderBarChart(stats);
     renderHotCold(stats);
     renderTable(stats);
+    renderDrawsPage();
     renderNever(stats);
     resultsEl.hidden = false;
     resultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+
+  drawJump.addEventListener("change", () => {
+    jumpToDraw(Number(drawJump.value) || 1);
+  });
+  drawJump.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      jumpToDraw(Number(drawJump.value) || 1);
+    }
+  });
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();

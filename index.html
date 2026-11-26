@@ -58,6 +58,14 @@
         <div class="ball-grid" id="ball-grid"></div>
       </section>
 
+      <section class="section" id="chart-section">
+        <h2>Gráfico de frequência</h2>
+        <p class="section-lead">Barras com a quantidade de vezes que cada dezena de 1 a 60 saiu.</p>
+        <div class="chart-wrap">
+          <div class="bar-chart" id="bar-chart" role="img" aria-label="Gráfico de barras da frequência por número"></div>
+        </div>
+      </section>
+
       <section class="section" id="hotcold-section">
         <h2>Quentes e frios</h2>
         <p class="section-lead">Os 6 mais sorteados e os 6 menos sorteados nesta simulação.</p>
@@ -84,6 +92,19 @@
             <tbody id="stats-body"></tbody>
           </table>
         </div>
+      </section>
+
+      <section class="section" id="draws-section">
+        <h2>Sorteios realizados</h2>
+        <p class="section-lead">Veja as 6 dezenas de cada sorteio da simulação.</p>
+        <div class="draws-toolbar">
+          <label class="field draws-jump" for="draw-jump">
+            <span class="field-label">Ir para o sorteio</span>
+            <input id="draw-jump" type="number" min="1" step="1" value="1" />
+          </label>
+          <div class="draws-pager" id="draws-pager"></div>
+        </div>
+        <div class="draws-list" id="draws-list"></div>
       </section>
 
       <section class="section" id="never-section" hidden>
